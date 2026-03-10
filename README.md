@@ -3,6 +3,10 @@
 
   <br>
   <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=50&pause=1000&color=F70000&center=true&vCenter=true&width=435&lines=MULTIVERSE;POLYGLOT+LAB;CODE+FOUNDRY" alt="Typing SVG" />
+  
+  <br>
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=20&pause=1000&color=db022b&center=true&vCenter=true&width=435&lines=JavaScript+Edition" alt="Typing SVG" />
 
   <p align="center">
 </div>
+
