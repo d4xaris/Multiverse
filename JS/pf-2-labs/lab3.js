@@ -3,6 +3,20 @@ function memoize(fn, options = {}) {
 
     const maxSize = options.maxSize || Infinity;
     const policy = options.policy || "LRU";
+    const ttl = options.ttl || 0;
+    const customEviction = options.customEviction || null;
+
+    function removeExpired() {
+        if (ttl <= 0) return;
+
+        const now = Date.now();
+
+        for (const [key, item] of cache) {
+            if (now - item.createdAt > ttl) {
+                cache.delete(key);
+            }
+        }
+    }
 
     function evictOne() {
         if (cache.size === 0) return;
@@ -18,6 +32,8 @@ function memoize(fn, options = {}) {
                     keyToDelete = key;
                 }
             }
+        } else if (policy === "CUSTOM" && typeof customEviction === "function") {
+            keyToDelete = customEviction(cache);
         } else if (policy === "LRU") {
             let oldestTime = Infinity;
 
@@ -35,6 +51,7 @@ function memoize(fn, options = {}) {
     }
 
     return function (...args) {
+        removeExpired();
 
         const key = JSON.stringify(args);
         const now = Date.now();
@@ -56,6 +73,7 @@ function memoize(fn, options = {}) {
 
         cache.set(key, {
             result: result,
+            createdAt: now,
             lastUsed: now,
             count: 1,
         });
@@ -93,3 +111,18 @@ console.log(memoizedSum(2, 1000));
 console.log(memoizedSum(4, 4));
 console.log(memoizedSum(3, 3));
 console.log(memoizedSum(4, 4));
+
+const memoizedSquare = memoize((x) => {
+    console.log("calculating");
+    return x * x;
+}, {
+    ttl: 2000,
+});
+
+console.log("TTL ==================");
+console.log(memoizedSquare(5));
+console.log(memoizedSquare(5));
+
+setTimeout(() => {
+    console.log(memoizedSquare(5));
+}, 3000);
