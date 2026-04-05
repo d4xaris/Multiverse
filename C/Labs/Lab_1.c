@@ -1,99 +1,97 @@
 #include <stdio.h>
 #include <math.h>
 
-typedef struct
-{
+typedef struct {
     double F;
-    double S;
-} Wrapper;
+    double sum;
+} Result;
 
-double rDescent(double x, int i, int n, double F, double result)
-{
-    result += F;
-
-    if (n == 1)
-    {
-        return result;
+double sum_down_rec(int i, int n, double f1, double current, double sum) {
+    if (i == n) {
+        return sum;
     }
-    else
-    {
-        double F1 = x / (pow((0.525 + 0.5 * x), 2) - 1);
-        double FNext = F * F1 * (3.0 - 2.0 * i) / (2.0 * i);
 
-        return rDescent(x, i + 1, n - 1, FNext, result);
-    }
+    double next = current * f1 * (3.0 - 2.0 * i) / (2.0 * i);
+    return sum_down_rec(i + 1, n, f1, next, sum + next);
 }
 
-Wrapper rReturn(double x, int i, int n)
-{
-    Wrapper result;
-
-    if (i == 1)
-    {
-        result.F = x / (pow((0.525 + 0.5 * x), 2) - 1);
-        result.S = result.F;
-        return result;
-    }
-
-    double F1 = x / (pow((0.525 + 0.5 * x), 2) - 1);
-    Wrapper prior = rReturn(x, i - 1, n);
-    result.F = prior.F * F1 * (3.0 - 2.0 * (i - 1)) / (2.0 * (i - 1));
-    result.S = prior.S + result.F;
-
-    return result;
+double sum_down(int n, double x) {
+    double f1 = x / pow(0.525 + 0.5 * x, 2.0) - 1.0;
+    return sum_down_rec(1, n, f1, f1, f1);
 }
 
-double rMixed(double x, int i, int n, double F)
-{
-    if (i > n)
-    {
-        return 0;
-    }
-    double F1 = x / (pow((0.525 + 0.5 * x), 2) - 1);
-    double FNext = F * F1 * (3.0 - 2.0 * i) / (2.0 * i);
-    double result = rMixed(x, i + 1, n, FNext);
+Result sum_up_rec(int i, double f1) {
+    Result res;
 
-    return result + F;
+    if (i == 1) {
+        res.F = f1;
+        res.sum = f1;
+        return res;
+    }
+
+    Result prev = sum_up_rec(i - 1, f1);
+
+    res.F = prev.F * f1 * (3.0 - 2.0 * (i - 1)) / (2.0 * (i - 1));
+    res.sum = prev.sum + res.F;
+
+    return res;
 }
 
-double loop(double x, int n, double F)
-{
-    double result = F;
+double sum_up(int n, double x) {
+    double f1 = x / pow(0.525 + 0.5 * x, 2.0) - 1.0;
+    Result res = sum_up_rec(n, f1);
+    return res.sum;
+}
 
-    for (int i = 1; i < n; i++)
-    {
-        double F1 = x / (pow((0.525 + 0.5 * x), 2) - 1);
+double sum_mixed_rec(int i, int n, double f1, double current) {
+    if (i == n) {
+        return current;
+    }
+
+    double next = current * f1 * (3.0 - 2.0 * i) / (2.0 * i);
+    return current + sum_mixed_rec(i + 1, n, f1, next);
+}
+
+double sum_mixed(int n, double x) {
+    double f1 = x / pow(0.525 + 0.5 * x, 2.0) - 1.0;
+    return sum_mixed_rec(1, n, f1, f1);
+}
+
+double loop(double x, int n) {
+    double F1 = x / pow(0.525 + 0.5 * x, 2.0) - 1.0;
+    double F = F1;
+    double result = F1;
+
+    for (int i = 1; i < n; i++) {
         F = F * F1 * (3.0 - 2.0 * i) / (2.0 * i);
         result += F;
     }
+
     return result;
 }
 
-int main()
-{
-    double x = 0.8;
-    int n = 5;
-    int i = 1;
-    double result = 0;
+int main() {
+    double x;
+    int n;
 
     printf("Enter your x: ");
     scanf("%lf", &x);
     printf("Enter your n: ");
     scanf("%d", &n);
 
-    double F = x / (pow((0.525 + 0.5 * x), 2) - 1);
-
-    double result1 = rDescent(x, i, n, F, result);
+    double result1 = sum_down(n, x);
     printf("First result: %lf\n", result1);
 
-    double result2 = rReturn(x, n, n).S;
+    double result2 = sum_up(n, x);
     printf("Second result: %lf\n", result2);
 
-    double result3 = rMixed(x, i, n, F);
+    double result3 = sum_mixed(n, x);
     printf("Third result: %lf\n", result3);
 
-    double loopResult = loop(x, n, F);
+    double loopResult = loop(x, n);
     printf("Loop function result: %lf\n", loopResult);
+
+    printf("sqrt(x): %lf\n", sqrt(x));
 
     return 0;
 }
