@@ -4,39 +4,43 @@ class BiDirectionalPriorityQueue {
     this._insertionCounter = 0;
     this._maxIdx = -1;
     this._minIdx = -1;
+    this._oldestIdx = -1;
   }
 
   enqueue(item, priority) {
     const node = { item, priority, insertionIndex: this._insertionCounter++ };
     this._data.push(node);
-    this._updateIndicesAfterInsert(this._data.length - 1);
-  }
+    const i = this._data.length - 1;
 
-  _updateIndicesAfterInsert(newIdx) {
-    const node = this._data[newIdx];
     if (
       this._maxIdx === -1 ||
       node.priority > this._data[this._maxIdx].priority
     )
-      this._maxIdx = newIdx;
+      this._maxIdx = i;
     if (
       this._minIdx === -1 ||
       node.priority < this._data[this._minIdx].priority
     )
-      this._minIdx = newIdx;
+      this._minIdx = i;
+    if (
+      this._oldestIdx === -1 ||
+      node.insertionIndex < this._data[this._oldestIdx].insertionIndex
+    )
+      this._oldestIdx = i;
   }
+
   _rebuildIndices() {
     if (this._data.length === 0) {
-      this._maxIdx = this._minIdx = -1;
+      this._maxIdx = this._minIdx = this._oldestIdx = -1;
       return;
     }
-    this._maxIdx = 0;
-    this._minIdx = 0;
+    this._maxIdx = this._minIdx = this._oldestIdx = 0;
     for (let i = 1; i < this._data.length; i++) {
-      if (this._data[i].priority > this._data[this._maxIdx].priority)
-        this._maxIdx = i;
-      if (this._data[i].priority < this._data[this._minIdx].priority)
-        this._minIdx = i;
+      const n = this._data[i];
+      if (n.priority > this._data[this._maxIdx].priority) this._maxIdx = i;
+      if (n.priority < this._data[this._minIdx].priority) this._minIdx = i;
+      if (n.insertionIndex < this._data[this._oldestIdx].insertionIndex)
+        this._oldestIdx = i;
     }
   }
 
@@ -46,60 +50,35 @@ class BiDirectionalPriorityQueue {
     return removed.item;
   }
 
-  dequeueHighest() {
+  dequeue(mode) {
     if (this.isEmpty()) return null;
-    return this._removeAt(this._maxIdx);
-  }
-
-  dequeueLowest() {
-    if (this.isEmpty()) return null;
-    return this._removeAt(this._minIdx);
-  }
-
-  dequeueOldest() {
-    if (this.isEmpty()) return null;
-    let oldestIdx = 0;
-    for (let i = 1; i < this._data.length; i++) {
-      if (this._data[i].insertionIndex < this._data[oldestIdx].insertionIndex)
-        oldestIdx = i;
+    switch (mode) {
+      case "highest":
+        return this._removeAt(this._maxIdx);
+      case "lowest":
+        return this._removeAt(this._minIdx);
+      case "oldest":
+        return this._removeAt(this._oldestIdx);
+      case "newest":
+        return this._removeAt(this._data.length - 1);
+      default:
+        throw new Error(`Unknown dequeue mode: "${mode}"`);
     }
-    return this._removeAt(oldestIdx);
-  }
-
-  dequeueNewest() {
-    if (this.isEmpty()) return null;
-    return this._removeAt(this._data.length - 1);
-  }
-
-  peekHighest() {
-    return this.isEmpty() ? null : this._data[this._maxIdx].item;
-  }
-  peekLowest() {
-    return this.isEmpty() ? null : this._data[this._minIdx].item;
-  }
-  peekNewest() {
-    return this.isEmpty() ? null : this._data[this._data.length - 1].item;
-  }
-  peekOldest() {
-    if (this.isEmpty()) return null;
-    let oldest = this._data[0];
-    for (const n of this._data)
-      if (n.insertionIndex < oldest.insertionIndex) oldest = n;
-    return oldest.item;
   }
 
   peek(mode) {
+    if (this.isEmpty()) return null;
     switch (mode) {
       case "highest":
-        return this.peekHighest();
+        return this._data[this._maxIdx].item;
       case "lowest":
-        return this.peekLowest();
+        return this._data[this._minIdx].item;
       case "oldest":
-        return this.peekOldest();
+        return this._data[this._oldestIdx].item;
       case "newest":
-        return this.peekNewest();
+        return this._data[this._data.length - 1].item;
       default:
-        throw new Error(`Unknown mode: "${mode}"`);
+        throw new Error(`Unknown peek mode: "${mode}"`);
     }
   }
 
@@ -112,13 +91,22 @@ class BiDirectionalPriorityQueue {
 }
 
 const pq = new BiDirectionalPriorityQueue();
-pq.enqueue("A", 3);
-pq.enqueue("B", 1);
-pq.enqueue("C", 5);
-pq.enqueue("D", 2);
+pq.enqueue("email", 2);
+pq.enqueue("meeting", 5);
+pq.enqueue("report", 1);
+pq.enqueue("call", 4);
+pq.enqueue("lunch", 3);
 
-console.log(pq.dequeueHighest());
-console.log(pq.dequeueLowest());
-console.log(pq.dequeueOldest());
-console.log(pq.dequeueNewest());
-console.log(pq.size);
+console.log("=== peek ===");
+console.log("highest:", pq.peek("highest"));
+console.log("lowest:", pq.peek("lowest"));
+console.log("oldest:", pq.peek("oldest"));
+console.log("newest:", pq.peek("newest"));
+console.log("\n=== dequeue ===");
+console.log(pq.dequeue("highest"));
+console.log(pq.dequeue("lowest"));
+console.log(pq.dequeue("oldest"));
+console.log(pq.dequeue("newest"));
+console.log("remaining:", pq.size);
+console.log(pq.dequeue("highest"));
+console.log("empty:", pq.isEmpty());
