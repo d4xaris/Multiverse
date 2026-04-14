@@ -23,11 +23,10 @@ function asyncMapCallback(arr, asyncTransform, finalCallback) {
           return;
         }
 
-        results[index] = value; // store in the right position
+        results[index] = value;
         completed++;
 
         if (completed === arr.length) {
-          // All items are done
           finalCallback(null, results);
         }
       });
