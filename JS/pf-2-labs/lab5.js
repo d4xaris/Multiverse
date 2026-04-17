@@ -1,93 +1,95 @@
-function syncMap(arr, transform) {
-  const result = [];
-  for (let i = 0; i < arr.length; i++) {
-    result.push(transform(arr[i]));
-  }
-  return result;
-}
+function asyncMapPromise(arr, asyncTransform) {
+  return new Promise(function (resolve, reject) {
+    const promises = [];
 
-function asyncMapCallback(arr, asyncTransform, finalCallback) {
-  const results = [];
-  let completed = 0;
+    for (let i = 0; i < arr.length; i++) {
+      promises.push(asyncTransform(arr[i]));
+    }
 
-  if (arr.length === 0) {
-    finalCallback(null, []);
-    return;
-  }
-
-  for (let i = 0; i < arr.length; i++) {
-    (function (index) {
-      asyncTransform(arr[index], function (err, value) {
-        if (err) {
-          finalCallback(err, null);
-          return;
-        }
-
-        results[index] = value;
-        completed++;
-
-        if (completed === arr.length) {
-          finalCallback(null, results);
-        }
+    Promise.all(promises)
+      .then(function (results) {
+        resolve(results);
+      })
+      .catch(function (err) {
+        reject(err);
       });
-    })(i);
-  }
+  });
 }
 
-function doubleAsync(num, callback) {
-  setTimeout(function () {
-    callback(null, num * 2);
-  }, 100);
+function doublePromise(num) {
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      resolve(num * 2);
+    }, 100);
+  });
 }
 
-console.log("Demo 1: Doubling numbers asynchronously");
+console.log("Demo 1: Doubling numbers with Promises");
 
-asyncMapCallback([1, 2, 3, 4, 5], doubleAsync, function (err, results) {
-  if (err) {
-    console.error("Something went wrong:", err);
-    return;
-  }
-  console.log("Input:  [1, 2, 3, 4, 5]");
-  console.log("Output:", results);
-});
-
-function toUpperAsync(str, callback) {
-  setTimeout(function () {
-    callback(null, str.toUpperCase());
-  }, 50);
-}
-
-console.log("\nDemo 2: Uppercasing strings asynchronously");
-
-asyncMapCallback(
-  ["hello", "world", "foo"],
-  toUpperAsync,
-  function (err, results) {
-    if (err) {
-      console.error("Error:", err);
-      return;
-    }
-    console.log("Input:  ['hello', 'world', 'foo']");
+asyncMapPromise([1, 2, 3, 4, 5], doublePromise)
+  .then(function (results) {
+    console.log("Input:  [1, 2, 3, 4, 5]");
     console.log("Output:", results);
-  },
-);
+  })
+  .catch(function (err) {
+    console.error("Error:", err.message);
+  });
 
-function mightFailAsync(num, callback) {
-  setTimeout(function () {
-    if (num === 3) {
-      callback(new Error("Oops, 3 is not allowed!"), null);
-    } else {
-      callback(null, num * 10);
-    }
-  }, 80);
+const fakeDatabase = {
+  1: "Alice",
+  2: "Bob",
+  3: "Charlie",
+};
+
+function getUserName(id) {
+  return new Promise(function (resolve, reject) {
+    setTimeout(function () {
+      const name = fakeDatabase[id];
+      if (name) {
+        resolve(name);
+      } else {
+        reject(new Error("User " + id + " not found"));
+      }
+    }, 80);
+  });
 }
 
-console.log("\nDemo 3: Handling an error mid-map");
+console.log("\nDemo 2: Fetching user names by ID");
 
-asyncMapCallback([1, 2, 3, 4], mightFailAsync, function (err, results) {
-  if (err) {
+asyncMapPromise([1, 2, 3], getUserName)
+  .then(function (names) {
+    console.log("Input:  [1, 2, 3]");
+    console.log("Output:", names);
+  })
+  .catch(function (err) {
+    console.error("Error:", err.message);
+  });
+
+console.log("\nDemo 3: One ID is missing from the database");
+
+asyncMapPromise([1, 99, 3], getUserName)
+  .then(function (names) {
+    console.log("Output:", names);
+  })
+  .catch(function (err) {
     console.error("Caught error:", err.message);
-    return;
-  }
-  console.log("Output:", results);
-});
+  });
+
+console.log("\nDemo 4: Chaining — double, then convert to strings");
+
+asyncMapPromise([5, 10, 15], doublePromise)
+  .then(function (doubled) {
+    return asyncMapPromise(doubled, function (num) {
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          resolve("Value: " + num);
+        }, 50);
+      });
+    });
+  })
+  .then(function (labelled) {
+    console.log("Output:", labelled);
+  })
+  .catch(function (err) {
+    console.error("Error:", err.message);
+  });
