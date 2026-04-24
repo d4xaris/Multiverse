@@ -1,87 +1,58 @@
-const { Readable, Transform, pipeline } = require("stream");
-const { promisify } = require("util");
-
-const pipelineAsync = promisify(pipeline);
-
-class LargeDataSource extends Readable {
-  constructor(totalRows) {
-    super({ objectMode: true });
-    this.totalRows = totalRows;
-    this.currentRow = 0;
-  }
-
-  _read() {
-    if (this.currentRow >= this.totalRows) {
-      this.push(null);
-      return;
-    }
-
-    this.push({
-      id: this.currentRow,
+async function* generateRows(totalRows) {
+  for (let i = 0; i < totalRows; i++) {
+    yield {
+      id: i,
       value: Math.random() * 1000,
-      label: `item-${this.currentRow}`,
-    });
+      label: `item-${i}`,
+    };
 
-    this.currentRow++;
+    if (i % 10_000 === 0) await new Promise((r) => setImmediate(r));
   }
 }
 
-class FilterAndEnrich extends Transform {
-  constructor() {
-    super({ objectMode: true });
-    this.seen = 0;
-    this.passed = 0;
-  }
+async function* filterAndEnrich(source) {
+  let seen = 0;
+  let passed = 0;
 
-  _transform(row, _encoding, done) {
-    this.seen++;
+  for await (const row of source) {
+    seen++;
 
-    if (row.value < 500) {
-      done();
-      return;
-    }
+    if (row.value < 500) continue;
 
-    this.passed++;
-    this.push({
+    passed++;
+    yield {
       ...row,
       value: parseFloat(row.value.toFixed(2)),
       processed: true,
-    });
-
-    done();
+    };
   }
 
-  _flush(done) {
-    console.log(`\nFilter stats: ${this.passed}/${this.seen} rows passed`);
-    done();
-  }
+  console.log(`\nFilter stats: ${passed}/${seen} rows passed`);
 }
 
 async function run() {
   const TOTAL_ROWS = 1_000_000;
 
-  console.log(`Streaming ${TOTAL_ROWS.toLocaleString()} rows...\n`);
+  console.log(
+    `Processing ${TOTAL_ROWS.toLocaleString()} rows with async iterators...\n`,
+  );
 
-  const source = new LargeDataSource(TOTAL_ROWS);
-  const filter = new FilterAndEnrich();
+  const source = generateRows(TOTAL_ROWS);
+  const processed = filterAndEnrich(source);
 
-  let processedCount = 0;
+  let count = 0;
 
-  const filtered = source.pipe(filter);
+  for await (const row of processed) {
+    count++;
 
-  for await (const row of filtered) {
-    processedCount++;
-
-    if (processedCount % 100_000 === 0) {
+    if (count % 100_000 === 0) {
       console.log(
-        `  processed ${processedCount.toLocaleString()} rows so far | latest id: ${row.id}`,
+        `  processed ${count.toLocaleString()} rows | latest id: ${row.id}`,
       );
     }
   }
 
-  console.log(
-    `\nDone. Total rows processed after filter: ${processedCount.toLocaleString()}`,
-  );
+  console.log(`\nDone. Total rows after filter: ${count.toLocaleString()}`);
 }
 
 run().catch(console.error);
