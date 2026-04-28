@@ -79,8 +79,6 @@ function timestamp() {
   return new Date().toISOString();
 }
 
-// --- example usage ---
-
 const getUser = log("INFO")(async function getUser(id) {
   return { id, name: "Alice" };
 });
