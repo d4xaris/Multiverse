@@ -1,93 +1,148 @@
-function syncMap(arr, transform) {
-  const result = [];
-  for (let i = 0; i < arr.length; i++) {
-    result.push(transform(arr[i]));
-  }
-  return result;
-}
-
-function asyncMapCallback(arr, asyncTransform, finalCallback) {
+async function asyncMap(arr, asyncTransform) {
   const results = [];
-  let completed = 0;
-
-  if (arr.length === 0) {
-    finalCallback(null, []);
-    return;
-  }
 
   for (let i = 0; i < arr.length; i++) {
-    (function (index) {
-      asyncTransform(arr[index], function (err, value) {
-        if (err) {
-          finalCallback(err, null);
-          return;
-        }
-
-        results[index] = value;
-        completed++;
-
-        if (completed === arr.length) {
-          finalCallback(null, results);
-        }
-      });
-    })(i);
+    const value = await asyncTransform(arr[i]);
+    results.push(value);
   }
+
+  return results;
 }
 
-function doubleAsync(num, callback) {
-  setTimeout(function () {
-    callback(null, num * 2);
-  }, 100);
+function doublePromise(num) {
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      resolve(num * 2);
+    }, 100);
+  });
 }
 
-console.log("Demo 1: Doubling numbers asynchronously");
-
-asyncMapCallback([1, 2, 3, 4, 5], doubleAsync, function (err, results) {
-  if (err) {
-    console.error("Something went wrong:", err);
-    return;
-  }
+async function runAsyncAwaitDemos() {
+  console.log("Demo 1: Doubling with async/await");
+  const doubled = await asyncMap([1, 2, 3, 4, 5], doublePromise);
   console.log("Input:  [1, 2, 3, 4, 5]");
-  console.log("Output:", results);
-});
+  console.log("Output:", doubled);
 
-function toUpperAsync(str, callback) {
-  setTimeout(function () {
-    callback(null, str.toUpperCase());
-  }, 50);
-}
+  console.log("\nDemo 2: Error handling with try/catch");
 
-console.log("\nDemo 2: Uppercasing strings asynchronously");
-
-asyncMapCallback(
-  ["hello", "world", "foo"],
-  toUpperAsync,
-  function (err, results) {
-    if (err) {
-      console.error("Error:", err);
-      return;
-    }
-    console.log("Input:  ['hello', 'world', 'foo']");
-    console.log("Output:", results);
-  },
-);
-
-function mightFailAsync(num, callback) {
-  setTimeout(function () {
-    if (num === 3) {
-      callback(new Error("Oops, 3 is not allowed!"), null);
-    } else {
-      callback(null, num * 10);
-    }
-  }, 80);
-}
-
-console.log("\nDemo 3: Handling an error mid-map");
-
-asyncMapCallback([1, 2, 3, 4], mightFailAsync, function (err, results) {
-  if (err) {
-    console.error("Caught error:", err.message);
-    return;
+  async function mightFail(num) {
+    return new Promise(function (resolve, reject) {
+      setTimeout(function () {
+        if (num > 3) {
+          reject(new Error("Number " + num + " is too big!"));
+        } else {
+          resolve(num * 100);
+        }
+      }, 60);
+    });
   }
-  console.log("Output:", results);
-});
+
+  try {
+    const results = await asyncMap([1, 2, 5], mightFail);
+    console.log("Output:", results);
+  } catch (err) {
+    console.error("Caught:", err.message);
+  }
+
+  console.log("\nDemo 3: Chaining steps cleanly");
+
+  const step1 = await asyncMap([10, 20, 30], doublePromise);
+  console.log("After doubling:", step1);
+
+  const step2 = await asyncMap(step1, function (n) {
+    return new Promise(function (resolve) {
+      setTimeout(function () {
+        resolve("$" + n);
+      }, 40);
+    });
+  });
+  console.log("After labelling:", step2);
+}
+
+runAsyncAwaitDemos();
+
+async function asyncMapAbortable(arr, asyncTransform, signal) {
+  const results = [];
+
+  for (let i = 0; i < arr.length; i++) {
+    if (signal && signal.aborted) {
+      throw new Error("Map was aborted before item " + i);
+    }
+
+    const value = await asyncTransform(arr[i], signal);
+    results.push(value);
+  }
+
+  return results;
+}
+
+function slowDouble(num, signal) {
+  return new Promise(function (resolve, reject) {
+    const timer = setTimeout(function () {
+      resolve(num * 2);
+    }, 300);
+
+    if (signal) {
+      signal.addEventListener("abort", function () {
+        clearTimeout(timer);
+        reject(new Error("Aborted while processing " + num));
+      });
+    }
+  });
+}
+
+async function runAbortDemos() {
+  console.log("\nDemo 4: Aborting the map halfway through");
+
+  const controller = new AbortController();
+
+  setTimeout(function () {
+    console.log(">>> Sending abort signal!");
+    controller.abort();
+  }, 500);
+
+  try {
+    const results = await asyncMapAbortable(
+      [1, 2, 3, 4, 5],
+      slowDouble,
+      controller.signal,
+    );
+    console.log("Output:", results);
+  } catch (err) {
+    console.error("Map stopped early:", err.message);
+  }
+
+  console.log("\nDemo 5: Aborting before the map starts");
+
+  const controller2 = new AbortController();
+  controller2.abort();
+
+  try {
+    const results = await asyncMapAbortable(
+      [10, 20, 30],
+      slowDouble,
+      controller2.signal,
+    );
+    console.log("Output:", results);
+  } catch (err) {
+    console.error("Map stopped early:", err.message);
+  }
+
+  console.log("\nDemo 6: Abortable map without aborting (runs fine)");
+
+  const controller3 = new AbortController();
+
+  try {
+    const results = await asyncMapAbortable(
+      [1, 2, 3],
+      slowDouble,
+      controller3.signal,
+    );
+    console.log("Input:  [1, 2, 3]");
+    console.log("Output:", results); // [2, 4, 6]
+  } catch (err) {
+    console.error("Unexpected error:", err.message);
+  }
+}
+
+runAbortDemos();
