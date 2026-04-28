@@ -1,6 +1,25 @@
-const { EventEmitter } = require("events");
+class Observable {
+  constructor() {
+    this.listeners = {};
+  }
 
-const messageBus = new EventEmitter();
+  subscribe(event, fn) {
+    if (!this.listeners[event]) this.listeners[event] = [];
+    this.listeners[event].push(fn);
+  }
+
+  unsubscribe(event, fn) {
+    if (!this.listeners[event]) return;
+    this.listeners[event] = this.listeners[event].filter((l) => l !== fn);
+  }
+
+  emit(event, data) {
+    if (!this.listeners[event]) return;
+    this.listeners[event].forEach((fn) => fn(data));
+  }
+}
+
+const messageBus = new Observable();
 
 function logger(event) {
   console.log(`[logger] received: "${event.text}" from ${event.from}`);
@@ -16,9 +35,9 @@ function dashboard(event) {
   console.log(`[dashboard] new message at ${new Date().toLocaleTimeString()}`);
 }
 
-messageBus.on("message", logger);
-messageBus.on("message", alertSystem);
-messageBus.on("message", dashboard);
+messageBus.subscribe("message", logger);
+messageBus.subscribe("message", alertSystem);
+messageBus.subscribe("message", dashboard);
 
 messageBus.emit("message", { from: "serviceA", text: "hello world" });
 messageBus.emit("message", {
@@ -27,7 +46,7 @@ messageBus.emit("message", {
 });
 
 console.log("\n-- unsubscribing dashboard --\n");
-messageBus.off("message", dashboard);
+messageBus.unsubscribe("message", dashboard);
 
 messageBus.emit("message", {
   from: "serviceA",
