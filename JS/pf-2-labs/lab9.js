@@ -79,6 +79,8 @@ function timestamp() {
   return new Date().toISOString();
 }
 
+// хочу попити цзінь цзюнь мей, але знизу example usage
+
 const getUser = log("INFO")(async function getUser(id) {
   return { id, name: "Alice" };
 });
@@ -117,3 +119,6 @@ async function main() {
 }
 
 main().catch(console.error);
+
+// дякую, що перевіряєте мою останню лабку, хочу побажати вам гарного дня та сил на перевірку інших лабораторних, і загалом дякую вам за лекції та знання, ви комфортік & пес патрон легенда
+// до зустрічі на здачі проєкту та курсача :)
